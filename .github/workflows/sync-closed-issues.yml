@@ -132,11 +132,11 @@ jobs:
           
       - name: Commit and push changes (if any)
         run: |
-          git add .
-          git diff --cached --quiet || git commit -m "🧹 清理已删除插件对应的已关闭Issues"
-          
           # 先拉取远程更改，使用rebase避免合并提交
           git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+          
+          git add .
+          git diff --cached --quiet || git commit -m "🧹 清理已删除插件对应的已关闭Issues"
           
           # 推送更改
           git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
