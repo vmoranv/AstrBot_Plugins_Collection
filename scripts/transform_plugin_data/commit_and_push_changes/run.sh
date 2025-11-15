@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
+echo "=== 开始推送脚本 ==="
+echo "仓库: ${GITHUB_REPOSITORY}"
+echo "PAT_TOKEN存在: ${PAT_TOKEN:+yes}"
+
 # 验证认证状态
 echo "验证Git认证状态..."
 if git ls-remote origin HEAD > /dev/null 2>&1; then
@@ -21,11 +25,14 @@ commit_message="🔄 Update plugin cache: $total_plugins plugins, $success_repos
 
 git commit -m "$commit_message"
 
-# 推送更改
+# 推送更改 - 使用最简单直接的方法
 echo "推送更改到远程仓库..."
-if git push https://x-access-token:${PAT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:main; then
-  echo "✅ 成功推送到远程仓库"
-else
-  echo "❌ 推送失败，可能是权限问题"
-  exit 1
-fi
+
+# 设置远程URL使用PAT_TOKEN
+git remote set-url origin https://${PAT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+
+# 尝试推送
+echo "执行推送命令..."
+git push origin HEAD:main
+
+echo "✅ 推送成功完成"
