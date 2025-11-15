@@ -80,6 +80,13 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_REPOSITORY: ${{ github.repository }}
     
+    - name: Diagnose permissions on failure
+      if: failure() && steps.fetch-data.outputs.should_update == 'true' && steps.git-check.outputs.has_changes == 'true'
+      run: bash "scripts/transform_plugin_data/diagnose_permissions/run.sh"
+      env:
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+    
     - name: Clean up
       if: always()
       run: bash "scripts/transform_plugin_data/clean_up/run.sh"
