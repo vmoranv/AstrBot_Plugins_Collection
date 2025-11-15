@@ -23,11 +23,9 @@ git commit -m "$commit_message"
 
 # 推送更改
 echo "推送更改到远程仓库..."
-if git push origin HEAD; then
+if git push https://x-access-token:${PAT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:main; then
   echo "✅ 成功推送到远程仓库"
 else
   echo "❌ 推送失败，可能是权限问题"
   exit 1
 fi
-
-

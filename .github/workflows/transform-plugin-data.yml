@@ -23,6 +23,22 @@ jobs:
         
     - name: Configure Git
       run: bash "scripts/transform_plugin_data/configure_git/run.sh"
+      
+    - name: Test authentication
+      run: |
+        echo "Testing GitHub API access..."
+        response=$(curl -s -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/user")
+        
+        if echo "$response" | jq -e '.login' > /dev/null 2>&1; then
+          user=$(echo "$response" | jq -r '.login')
+          echo "✅ Authentication successful for user: $user"
+        else
+          echo "❌ Authentication failed"
+          echo "$response"
+          exit 1
+        fi
         
     - name: Fetch original plugin data
       id: fetch-data
@@ -58,6 +74,9 @@ jobs:
     - name: Commit and push changes
       if: steps.fetch-data.outputs.should_update == 'true' && steps.git-check.outputs.has_changes == 'true'
       run: bash "scripts/transform_plugin_data/commit_and_push_changes/run.sh"
+      env:
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
     
     - name: Clean up
       if: always()

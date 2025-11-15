@@ -2,8 +2,8 @@ name: 🔄 同步已关闭的Issues
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # 每天 UTC 时间 2:00 运行 (北京时间 10:00)
-  workflow_dispatch:  # 允许手动触发
+    - cron: '0 2 * * *'
+  workflow_dispatch:
 
 jobs:
   sync-closed-issues:
@@ -28,6 +28,22 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+          
+      - name: Test authentication
+        run: |
+          echo "Testing GitHub API access..."
+          response=$(curl -s -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/user")
+          
+          if echo "$response" | jq -e '.login' > /dev/null 2>&1; then
+            user=$(echo "$response" | jq -r '.login')
+            echo "✅ Authentication successful for user: $user"
+          else
+            echo "❌ Authentication failed"
+            echo "$response"
+            exit 1
+          fi
           
       - name: Fetch original plugin data
         run: |
@@ -118,4 +134,4 @@ jobs:
         run: |
           git add .
           git diff --cached --quiet || git commit -m "🧹 清理已删除插件对应的已关闭Issues"
-          git push origin main
+          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
