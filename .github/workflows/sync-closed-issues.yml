@@ -88,6 +88,13 @@ jobs:
           
           echo "closed_issues=$closed_issues" >> $GITHUB_ENV
           
+          # 获取已关闭Issues的详细信息（包含插件信息）
+          closed_issues_details=$(curl -s -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues?state=closed&labels=plugin-publish&per_page=100")
+          
+          echo "$closed_issues_details" > closed_issues_details.json
+          
       - name: Process plugins and clean up deleted issues
         run: |
           echo "处理插件数据并清理已删除的issue..."
@@ -107,11 +114,20 @@ jobs:
           # 获取当前插件名称列表
           plugin_names=$(jq -r 'keys[]' temp_plugins.json)
           
-          # 遍历已关闭的Issues
-          echo "$closed_issues" | jq -r 'to_entries[] | "\(.key):\(.value)"' | while IFS=':' read -r issue_title issue_number; do
+          # 处理已关闭的Issues，提取插件信息并同步到plugins.json
+          echo "从已关闭的Issues中提取插件信息..."
+          
+          # 遍历已关闭的Issues详细信息
+          jq -c '.[]' closed_issues_details.json | while read -r issue; do
+            issue_number=$(echo "$issue" | jq -r '.number')
+            issue_title=$(echo "$issue" | jq -r '.title')
+            issue_body=$(echo "$issue" | jq -r '.body')
+            
             # 提取插件名称 (从issue标题中)
             # 假设标题格式为 "[Plugin] 插件名"
             plugin_name_from_issue=$(echo "$issue_title" | sed -E 's/\[Plugin\] //')
+            
+            echo "处理Issue #$issue_number: $plugin_name_from_issue"
             
             # 检查该插件是否还在原始数据中
             if ! echo "$plugin_names" | grep -q "^$plugin_name_from_issue$"; then
@@ -125,10 +141,65 @@ jobs:
                 "https://api.github.com/repos/${{ github.repository }}/issues/$issue_number"
             else
               echo "插件 $plugin_name_from_issue 仍在原始数据中，保留Issue #$issue_number"
+              
+              # 尝试从issue body中提取插件信息
+              if [ "$issue_body" != "null" ] && [ "$issue_body" != "" ]; then
+                # 查找JSON格式的插件信息
+                # 假设插件信息在代码块中或直接以JSON格式提供
+                plugin_info=$(echo "$issue_body" | grep -o '{[^}]*"repo"[^}]*}' | head -1)
+                
+                if [ -n "$plugin_info" ]; then
+                  echo "从Issue #$issue_number 中提取到插件信息"
+                  
+                  # 验证JSON格式并更新插件信息
+                  if echo "$plugin_info" | jq . > /dev/null 2>&1; then
+                    # 获取插件ID（从插件名称生成）
+                    plugin_id=$(echo "$plugin_name_from_issue" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g')
+                    
+                    # 更新插件信息到temp_plugins.json
+                    jq --arg id "$plugin_id" --argjson info "$plugin_info" '.[$id] = $info' temp_plugins.json > temp_plugins_updated.json && mv temp_plugins_updated.json temp_plugins.json
+                    
+                    echo "✅ 已更新插件 $plugin_name_from_issue 的信息"
+                  else
+                    echo "❌ 插件信息JSON格式无效"
+                  fi
+                else
+                  echo "未在Issue #$issue_number 中找到有效的插件信息"
+                fi
+              else
+                echo "Issue #$issue_number 没有内容，跳过"
+              fi
             fi
           done
           
-          echo "✅ 清理完成"
+          # 处理不在已关闭Issues中的现有插件，确保它们被保留
+          echo "确保现有插件数据被保留..."
+          
+          # 获取所有已关闭Issues中的插件名称
+          closed_issue_plugins=$(jq -r '.[].title' closed_issues_details.json | sed -E 's/\[Plugin\] //' | sort | uniq)
+          
+          # 遍历原始插件数据中的所有插件
+          jq -r 'keys[]' original_plugins.json | while read -r plugin_id; do
+            plugin_display_name=$(jq -r ".[\"$plugin_id\"].display_name" original_plugins.json)
+            
+            # 检查插件是否在已关闭Issues中
+            if ! echo "$closed_issue_plugins" | grep -q "^$plugin_display_name$"; then
+              echo "保留现有插件: $plugin_display_name ($plugin_id)"
+              # 确保该插件在temp_plugins.json中存在
+              if ! jq -e ".[\"$plugin_id\"]" temp_plugins.json > /dev/null 2>&1; then
+                # 如果不存在，从原始数据中添加
+                jq --arg id "$plugin_id" --argjson info "$(jq ".[\"$plugin_id\"]" original_plugins.json)" '.[$id] = $info' temp_plugins.json > temp_plugins_updated.json && mv temp_plugins_updated.json temp_plugins.json
+                echo "✅ 已恢复插件 $plugin_display_name 的数据"
+              fi
+            fi
+          done
+          
+          # 将更新后的插件数据复制到plugins.json
+          cp temp_plugins.json plugins.json
+          
+          echo "✅ 处理完成"
+          echo "📊 最终插件统计:"
+          jq -r 'keys | length as $count | "插件总数: \($count)"' plugins.json
           
       - name: Commit and push changes (if any)
         run: |
@@ -136,7 +207,7 @@ jobs:
           git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
           
           git add .
-          git diff --cached --quiet || git commit -m "🧹 清理已删除插件对应的已关闭Issues"
+          git diff --cached --quiet || git commit -m "🔄 同步已关闭Issues中的插件信息到plugins.json并清理已删除插件对应的Issues"
           
           # 推送更改
           git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
