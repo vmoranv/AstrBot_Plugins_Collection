@@ -151,11 +151,22 @@ jobs:
             # 尝试从issue body中提取插件信息
             if [ "$issue_body" != "null" ] && [ "$issue_body" != "" ]; then
               # 查找JSON格式的插件信息
-              # 假设插件信息在代码块中或直接以JSON格式提供
-              plugin_info=$(echo "$issue_body" | grep -o '{[^}]*"repo"[^}]*}' | head -1)
+              # 首先尝试从代码块中提取JSON
+              plugin_info=$(echo "$issue_body" | sed -n '/```json/,/```/p' | grep -v '```' | head -1)
+              
+              # 如果代码块中没有找到，尝试直接查找JSON
+              if [ -z "$plugin_info" ]; then
+                plugin_info=$(echo "$issue_body" | grep -o '{[^{}]*"repo"[^{}]*}' | head -1)
+              fi
+              
+              # 如果还是没有找到，尝试更宽泛的JSON匹配
+              if [ -z "$plugin_info" ]; then
+                plugin_info=$(echo "$issue_body" | grep -o '{[^{}]*"display_name"[^{}]*}' | head -1)
+              fi
               
               if [ -n "$plugin_info" ]; then
                 echo "从Issue #$issue_number 中提取到插件信息"
+                echo "插件信息预览: $(echo "$plugin_info" | head -c 200)..."
                 
                 # 验证JSON格式并更新插件信息
                 if echo "$plugin_info" | jq . > /dev/null 2>&1; then
@@ -168,9 +179,11 @@ jobs:
                   echo "✅ 已更新插件 $plugin_name_from_issue 的信息"
                 else
                   echo "❌ 插件信息JSON格式无效"
+                  echo "原始插件信息: $plugin_info"
                 fi
               else
                 echo "未在Issue #$issue_number 中找到有效的插件信息"
+                echo "Issue body 预览: $(echo "$issue_body" | head -c 200)..."
               fi
             else
               echo "Issue #$issue_number 没有内容，跳过"
