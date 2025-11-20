@@ -114,9 +114,25 @@ jobs:
           echo "最终使用的Issues数量: $(echo "$closed_issues_details" | jq 'length')"
           echo "$closed_issues_details" > closed_issues_details.json
           
-      - name: Process plugins and clean up deleted issues
+      - name: Process plugins from closed issues
         run: |
-          echo "处理插件数据并清理已删除的issue..."
+          echo "=== 开始从已关闭的Issues中处理插件数据 ==="
+          echo "当前工作目录: $(pwd)"
+          echo "当前文件列表:"
+          ls -la
+          
+          # 检查必要文件是否存在
+          if [ ! -f original_plugins.json ]; then
+            echo "❌ 未找到原始插件数据文件 original_plugins.json"
+            exit 1
+          fi
+          
+          if [ ! -f closed_issues_details.json ]; then
+            echo "❌ 未找到已关闭Issues详情文件 closed_issues_details.json"
+            exit 1
+          fi
+          
+          echo "✅ 必要文件检查通过"
           
           # 创建临时文件
           touch temp_plugins.json
@@ -211,9 +227,9 @@ jobs:
             
             # 检查该插件是否还在原始数据中
             if ! echo "$plugin_names" | grep -q "^$plugin_name_from_issue$"; then
-              echo "插件 $plugin_name_from_issue 不在原始数据中，但已从Issue中添加"
+              echo "插件 $plugin_name_from_issue 不在原始数据中，已从Issue中添加"
             else
-              echo "插件 $plugin_name_from_issue 仍在原始数据中，保留Issue #$issue_number"
+              echo "插件 $plugin_name_from_issue 仍在原始数据中，已更新信息"
             fi
           done
           
@@ -248,11 +264,25 @@ jobs:
           
       - name: Commit and push changes (if any)
         run: |
-          # 先拉取远程更改，使用rebase避免合并提交
-          git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
-          
+          # 先添加所有更改
           git add .
-          git diff --cached --quiet || git commit -m "🔄 同步已关闭Issues中的插件信息到plugins.json并清理已删除插件对应的Issues"
           
-          # 推送更改
-          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+          # 检查是否有需要提交的更改
+          if git diff --cached --quiet; then
+            echo "没有需要提交的更改"
+          else
+            echo "检测到更改，准备提交"
+            # 先拉取远程更改
+            git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main || {
+              echo "Rebase失败，尝试stash然后pull"
+              git stash
+              git pull --rebase https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+              git stash pop
+            }
+            
+            # 提交更改
+            git commit -m "🔄 同步已关闭Issues中的插件信息到plugins.json"
+            
+            # 推送更改
+            git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+          fi
