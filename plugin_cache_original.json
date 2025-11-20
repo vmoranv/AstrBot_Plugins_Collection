@@ -12,5 +12,49 @@
     "updated_at": "2025-11-15T10:33:14Z",
     "version": "v1.0.0",
     "logo": "https://raw.githubusercontent.com/vmoranv/astrbot_plugin_pornhub/master/logo.png"
+  },
+  "astrbot_plugin_search_that": {
+    "name": "astrbot_plugin_search_that",
+    "display_name": "search_that",
+    "desc": "车牌号寻血猎犬",
+    "author": "vmoranv",
+    "repo": "https://github.com/vmoranv/astrbot_plugin_search_that",
+    "tags": [
+      "车牌号",
+      "女优查询"
+    ],
+    "social_link": "https://github.com/vmoranv",
+    "stars": 0,
+    "updated_at": "2025-10-27T08:37:45Z",
+    "version": "1.0.0"
+  },
+  "astrbot_plugin_91vip": {
+    "name": "astrbot_plugin_91vip",
+    "display_name": "astrbot_plugin_91vip",
+    "desc": "91porn视频爬虫插件，支持获取视频列表和自动打码封面",
+    "author": "vmoranv",
+    "repo": "https://github.com/vmoranv/astrbot_plugin_91vip",
+    "tags": [
+      "91porn"
+    ],
+    "social_link": "https://github.com/vmoranv",
+    "stars": 0,
+    "updated_at": "2025-11-19T12:20:27Z",
+    "version": "v1.0.0"
+  },
+  "astrbot_plugin_pixiv_search": {
+    "name": "astrbot_plugin_pixiv_search",
+    "display_name": "AstrBot Pixiv 搜索插件",
+    "desc": "通过标签在 Pixiv 上搜索插画。",
+    "author": "vmoranv",
+    "repo": "https://github.com/vmoranv/astrbot_plugin_pixiv_search",
+    "tags": [
+      "pixiv"
+    ],
+    "social_link": "https://github.com/vmoranv",
+    "stars": 27,
+    "updated_at": "2025-11-18T07:05:12Z",
+    "version": "1.4.1",
+    "logo": "https://raw.githubusercontent.com/vmoranv/astrbot_plugin_pixiv_search/master/logo.png"
   }
 }
